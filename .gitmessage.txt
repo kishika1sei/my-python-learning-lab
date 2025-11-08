@@ -1,0 +1,7 @@
+﻿# <type>(<scope>): <subject>
+# subject は命令形・簡潔に（add, fix, update ...）
+
+# (空行のあと詳細 WHY/WHAT/IMPACT を簡潔に)
+# Why: なぜ必要か
+# What: 何を変えたか
+# Impact: 影響や注意点

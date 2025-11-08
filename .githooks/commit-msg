@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# commit message checker (Conventional Commits)
+msg_file="$1"
+
+# ?????????
+first_line="$(head -n 1 "$msg_file")"
+
+echo "$first_line" | grep -E '^(feat|fix|docs|style|refactor|test|chore|perf|build|ci)(\([a-z0-9_.-]+\))?: .{1,}' >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "? commit message must follow Conventional Commits (e.g. feat(ui): add button)" >&2
+  exit 1
+fi

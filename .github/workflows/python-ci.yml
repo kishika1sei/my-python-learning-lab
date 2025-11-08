@@ -1,0 +1,41 @@
+﻿name: python-ci
+
+on:
+  pull_request:
+    branches: [ develop, main ]
+  push:
+    branches: [ develop ]
+
+jobs:
+  test-all-apps:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run tests for each app
+        run: |
+          set -e
+          if [ -d "apps" ]; then
+            for app in apps/*; do
+              if [ -d "$app" ]; then
+                echo "===> Testing $app"
+                if [ -f "$app/requirements.txt" ]; then
+                  pip install -r "$app/requirements.txt"
+                fi
+                if [ -f "$app/pyproject.toml" ]; then
+                  pip install .
+                fi
+                if [ -d "$app/tests" ] || ls "$app"/**/tests 1>/dev/null 2>&1; then
+                  python -m pip install -U pytest
+                  pytest "$app" -q
+                else
+                  echo "No tests found for $app (skipping pytest)"
+                fi
+              fi
+            done
+          fi

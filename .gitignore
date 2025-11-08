@@ -1,0 +1,25 @@
+﻿# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+.venv/
+.env
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+build/
+dist/
+
+# Node (もしフロントが入る場合)
+node_modules/
