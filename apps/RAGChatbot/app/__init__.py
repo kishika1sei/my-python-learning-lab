@@ -1,9 +1,15 @@
 # app/__init__.py
-from flask import Flask, g, request
+from flask import Flask, g, request,session
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from .routes import web_bp
 from .api import api_bp  # .以降の部分はpythonのファイル名が入る
 from config import Config  # ← ルート直下の config.py を参照
 import logging, json ,sys , uuid ,time
+from .models import Conversation
+
+db = SQLAlchemy()
+migrate = Migrate()
 
 class JsonFormatter(logging.Formatter):
     def format(self, record):
@@ -12,13 +18,20 @@ class JsonFormatter(logging.Formatter):
         if hasattr(record, "trace"):
             base.update(record.trace)
         return json.dumps(base, ensure_ascii=False)
-    
+
+# Sessionの生成
+def start_conversation():
+    conv = Conversation()
+     
+
+
 # Flaskアプリを作る
 def create_app():
     # Flask本体を生成し、config.pyを読み込む
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config.from_object(Config)
-
+    # app.config["SQLALCHEMY_DATABASE_URI"] = os.
+    
     # 構造化ログ
     h = logging.StreamHandler(sys.stdout)
     h.setFormatter(JsonFormatter())
