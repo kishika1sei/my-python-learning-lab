@@ -24,3 +24,9 @@ dist/
 
 # データ
 data/index/
+
+# メモ
+.session_db_setup.md
+
+# docker系
+.dockerignore

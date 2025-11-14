@@ -1,0 +1,14 @@
+# Dockerfile.db
+FROM postgres:16
+
+# タイムゾーンなど任意
+ENV TZ=Asia/Tokyo
+
+# 初期化スクリプト：初回起動時に実行される（*.sql, *.sql.gz, *.sh）
+# 例: 01_schema.sql / 02_seed.sql / 10_extensions.sql
+COPY initdb/ /docker-entrypoint-initdb.d/
+
+# （任意）設定ファイルを差し替えたいときの例：
+# COPY conf/postgresql.conf /etc/postgresql/postgresql.conf
+# ENV POSTGRES_CONFIG_FILE=/etc/postgresql/postgresql.conf
+# その場合は起動後に `ALTER SYSTEM SET` で読み替えるか、CMDを工夫します

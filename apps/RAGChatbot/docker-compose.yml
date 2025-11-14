@@ -1,0 +1,30 @@
+# Use postgres/example user/password credentials
+
+services:
+
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    image: my-postgres:local
+    container_name: mypgragchatdb
+    restart: unless-stopped
+    # set shared memory limit when using docker compose
+    shm_size: 128mb
+    # or set shared memory limit when deploy via swarm stack
+    volumes:
+      - ./data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    env_file: .env
+    ports:
+      - "15432:5432"
+
+  adminer:
+    build:
+      context: .
+      dockerfile: Dockerfile.adminer
+    image: my-adminer:local
+    container_name: myragdbadminer
+    restart: unless-stopped
+    ports:
+      - 8082:8080

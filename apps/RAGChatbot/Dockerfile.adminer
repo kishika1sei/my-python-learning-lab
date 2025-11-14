@@ -1,0 +1,6 @@
+# Dockerfile.adminer
+FROM adminer:latest
+
+# （任意）テーマやプラグインを入れたい場合はここで追加
+# 例: テーマを入れるなら /var/www/html/plugins/ や /var/www/html/adminer.css などに配置
+# COPY themes/myskin/adminer.css /var/www/html/adminer.css
