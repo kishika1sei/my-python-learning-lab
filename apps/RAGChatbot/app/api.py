@@ -100,7 +100,7 @@ def api_ingest():
         }})
         return jsonify({"ok": False, "error": str(e), "trace_id": getattr(g, "trace_id", "")}), 500
 
-
+# TODO Chatに変える
 @api_bp.post("/ask")
 def api_ask():
     """
