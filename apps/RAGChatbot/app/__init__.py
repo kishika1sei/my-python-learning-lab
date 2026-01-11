@@ -1,15 +1,11 @@
 # app/__init__.py
 from flask import Flask, g, request,session
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from .extensions import db, migrate
 from .routes import web_bp
 from .api import api_bp  # .以降の部分はpythonのファイル名が入る
 from config import Config  # ← ルート直下の config.py を参照
 import logging, json ,sys , uuid ,time
-from .models import Conversation
 
-db = SQLAlchemy()
-migrate = Migrate()
 
 class JsonFormatter(logging.Formatter):
     def format(self, record):
@@ -21,8 +17,9 @@ class JsonFormatter(logging.Formatter):
 
 # Sessionの生成
 def start_conversation():
+    from .models import Conversation
     conv = Conversation()
-    db.session.add =(conv)
+    db.session.add(conv)
     db.session.commit()
     session['conversation_id'] = conv.id
     return conv.id
@@ -35,6 +32,9 @@ def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config.from_object(Config)
     # app.config["SQLALCHEMY_DATABASE_URI"] = os.
+
+    db.init_app(app)
+    migrate.init_app(app, db)
     
     # 構造化ログ
     h = logging.StreamHandler(sys.stdout)

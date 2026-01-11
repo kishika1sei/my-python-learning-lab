@@ -9,7 +9,6 @@ from .llm_utils import embed_texts
 # 許可するファイル形式を設定
 ALLOWED_EXTS = {".pdf", ".txt",".md",".markdown"}
 
-# returnに書いてるany関数の部分がわからない
 def is_allowed_ext(filename: str) -> bool:
     """許可拡張子かどうか（小文字化して判定）"""
     name = filename.lower()
@@ -70,46 +69,70 @@ def ingest_local_dir() -> int:
     texts: List[str] = []
     metas: List[Dict] = []
 
+    max_files = current_app.config.get("INGEST_MAX_FILES")
+    max_bytes = current_app.config.get("INGEST_MAX_BYTES")
+    processed = 0
+
     for name in sorted(os.listdir(pdf_dir)):
         path = os.path.join(pdf_dir, name)
-        if not os.path.isfile(path):
-            continue
-        if not is_allowed_ext(name):
-            continue
+        try:
+            if not os.path.isfile(path):
+                continue
+            if not is_allowed_ext(name):
+                continue
+            if max_files and processed >= int(max_files):
+                break
+            if max_bytes:
+                try:
+                    if os.path.getsize(path) > int(max_bytes):
+                        current_app.logger.info("ingest skip: too_large", extra={"trace": {
+                            "path": path,
+                            "size": os.path.getsize(path),
+                            "max_bytes": int(max_bytes),
+                        }})
+                        continue
+                except OSError:
+                    pass
 
-        low = name.lower()
-        if low.endswith(".pdf"):
-            # --- PDFはページごとに処理して page / total_pages をメタへ入れる ---
-            reader = PdfReader(path)
-            total_pages = len(reader.pages)
-            for page_no, page in enumerate(reader.pages, start=1):  # 1始まり（UIに優しい）
-                page_text = page.extract_text() or ""
-                for j, chunk in enumerate(_split(page_text)):
+            low = name.lower()
+            if low.endswith(".pdf"):
+                # --- PDFはページごとに処理して page / total_pages をメタへ入れる ---
+                reader = PdfReader(path)
+                total_pages = len(reader.pages)
+                for page_no, page in enumerate(reader.pages, start=1):  # 1始まり（UIに優しい）
+                    page_text = page.extract_text() or ""
+                    for j, chunk in enumerate(_split(page_text)):
+                        texts.append(chunk)
+                        metas.append({
+                            "doc": name,
+                            "path": path,
+                            "chunk_id": f"{page_no}-{j}",
+                            "page": page_no,
+                            "total_pages": total_pages,
+                        })
+            elif low.endswith((".md", ".markdown")):
+                raw = _read_md(path)
+                for i, chunk in enumerate(_split(raw)):
                     texts.append(chunk)
                     metas.append({
-                        "doc": name,
-                        "path": path,
-                        "chunk_id": f"{page_no}-{j}",
-                        "page": page_no,
-                        "total_pages": total_pages,
+                        "doc": name, "path": path, "chunk_id": i,
+                        # テキスト系はページ概念が無いので total_pages は None
+                        "total_pages": None,
                     })
-        elif low.endswith((".md", ".markdown")):
-            raw = _read_md(path)
-            for i, chunk in enumerate(_split(raw)):
-                texts.append(chunk)
-                metas.append({
-                    "doc": name, "path": path, "chunk_id": i,
-                    # テキスト系はページ概念が無いので total_pages は None
-                    "total_pages": None,
-                })
-        else:
-            raw = _read_txt(path)
-            for i, chunk in enumerate(_split(raw)):
-                texts.append(chunk)
-                metas.append({
-                    "doc": name, "path": path, "chunk_id": i,
-                    "total_pages": None,
-                })
+            else:
+                raw = _read_txt(path)
+                for i, chunk in enumerate(_split(raw)):
+                    texts.append(chunk)
+                    metas.append({
+                        "doc": name, "path": path, "chunk_id": i,
+                        "total_pages": None,
+                    })
+            processed += 1
+        except Exception as e:
+            current_app.logger.exception("ingest file failed", extra={"trace": {
+                "path": path,
+                "error": str(e),
+            }})
 
     if not texts:
         return 0

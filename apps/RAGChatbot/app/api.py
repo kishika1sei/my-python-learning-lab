@@ -8,7 +8,7 @@ import unicodedata
 import re
 import secrets
 
-api_bp = Blueprint("api", __name__, url_prefix="/api")
+api_bp = Blueprint("api", __name__)
 
 def safe_filename_keep_unicode(filename: str) -> str:
     """

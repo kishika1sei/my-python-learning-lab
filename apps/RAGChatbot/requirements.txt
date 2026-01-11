@@ -3,6 +3,7 @@ flask_migrate
 psycopg2-binary
 gunicorn
 python-dotenv
+openai
 sentence-transformers
 faiss-cpu
 pydantic

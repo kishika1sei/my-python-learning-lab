@@ -22,10 +22,39 @@
 - いずれの回答方法でも、AIがかみ砕いた用語で回答を行う
 
 
-<!-- # セットアップ
+## セットアップ
+
+```sh
 pip install -r requirements.txt
-cp .env.sample .env  # 値を設定
-mkdir -p data/pdf -->
+```
+
+`.env` を作成して必要な値を設定してください。
+
+```env
+OPENAI_API_KEY=your_key
+SERP_API_KEY=your_key  # Web/Hybridモードで必須
+DATABASE_URL=postgresql+psycopg2://appuser:password@localhost:15432/appdb
+SCOPE_KEYWORDS=補助金,助成金,給付金,支援制度,支援金,助成制度
+```
+
+`DATABASE_URL` を使わない場合は、以下でも接続できます。
+
+```env
+POSTGRES_USER=appuser
+POSTGRES_PASSWORD=password
+POSTGRES_HOST=localhost
+POSTGRES_PORT=15432
+POSTGRES_DB=appdb
+```
+
+PDFを入れるフォルダは `data/pdf` です。
+
+任意の制限（必要な場合のみ）:
+
+```env
+INGEST_MAX_FILES=200
+INGEST_MAX_BYTES=20000000
+```
 
 ### 事前インデックス
 <!-- python scripts/ingest.py  
@@ -33,8 +62,22 @@ mkdir -p data/pdf -->
 
 ### 起動コマンド
 
-```python
-flask --app app:run run
+```sh
+flask --app app:create_app run
+```
+
+または
+
+```sh
+python run.py
 ```
 
  http://localhost:5000
+
+### DB（任意）
+
+PostgreSQL を使う場合は `docker-compose.yml` を起動します。
+
+```sh
+docker compose up -d
+```
