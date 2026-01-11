@@ -22,6 +22,10 @@ class JsonFormatter(logging.Formatter):
 # Sessionの生成
 def start_conversation():
     conv = Conversation()
+    db.session.add =(conv)
+    db.session.commit()
+    session['conversation_id'] = conv.id
+    return conv.id
      
 
 

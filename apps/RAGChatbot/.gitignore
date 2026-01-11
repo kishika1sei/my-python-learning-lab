@@ -21,6 +21,7 @@ dist/
 *.onnx
 *.ckpt
 *.bin
+RAGの設計思想
 
 # データ
 data/index/
@@ -30,3 +31,5 @@ data/index/
 
 # docker系
 .dockerignore
+
+docs
