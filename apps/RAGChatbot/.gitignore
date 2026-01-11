@@ -21,6 +21,15 @@ dist/
 *.onnx
 *.ckpt
 *.bin
+RAGの設計思想
 
 # データ
 data/index/
+
+# メモ
+.session_db_setup.md
+
+# docker系
+.dockerignore
+
+docs

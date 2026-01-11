@@ -1,7 +1,7 @@
 # app/services/rag.py
 from typing import Dict, List, Any, Tuple
 from flask import current_app, g
-from .llm_utils import chat, chat_with_meta
+from .llm_utils import chat_with_meta
 from .vectorstore import faiss_exists, faiss_search
 from .doc_utils import read_preview
 from .serp_utils import google_search
@@ -12,7 +12,6 @@ import json, re
 
 
 _JSON_OBJ = re.compile(r'\{.*\}', re.DOTALL)
-ALLOWED_KEYWORDS = ("補助金", "助成金", "給付金", "支援制度", "支援金", "助成制度")
 
 # 追加: 「不明/ノイズ」検出用のパターン
 _UNCERTAIN_PATTERNS = [
@@ -77,11 +76,18 @@ def _emit_decision_log(*, stage: str, query: str, mode: str, timing: Dict[str,in
 # 初期プロンプト（設定で差し替え可）
 DEFAULT_SYS = "あなたは日本語で正確に答えるアシスタントです。補助金や支援制度についてのみの質問に対し、根拠に基づき簡潔に回答し、不明な点は正直に『不明』と述べてください。絶対に関係のない質問には答えないでください。"
 
-def _fetch_text(url: str, timeout: int = 10) -> str:
+def _fetch_text(url: str, timeout: int = 10, max_chars: int = 12000) -> str:
     try:
-        html = requests.get(url, timeout=timeout).text
+        resp = requests.get(
+            url,
+            timeout=timeout,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        resp.raise_for_status()
+        html = resp.text
         soup = BeautifulSoup(html, "html.parser")
-        return soup.get_text(separator="\n")
+        text = soup.get_text(separator="\n")
+        return text[:max_chars]
     except Exception:
         return ""
 
@@ -263,6 +269,37 @@ def _decide_hide_sources(answer_text: str,
     return False, ""
 
 # ===== メイン回答関数 =====
+# ===== 回答バリデーション =====
+FIXED_MSG = "このチャットは補助金・助成制度に関する質問のみ受け付けます。"
+
+def rule_validate(query: str, text: str, sources: list[dict]) -> tuple[bool, list[str]]:
+    errs = []
+    if not sources and ("不明" not in text):
+        errs.append("根拠なし回答")
+    if len(text) > current_app.config.get("MAX_ANSWER_CHARS", 1200):
+        errs.append("長すぎ")
+    # 例：NGワード/PII/外部URL形式 等の追加チェック
+    return (len(errs)==0, errs)
+
+def validate_answer_llm(query: str, text: str) -> tuple[bool, list[str]]:
+    sys = "あなたは回答レビュワーです。方針に適合するかを判定し、JSONで返します。温度0。"
+    usr = (
+        "方針:\n"
+        "- テーマは補助金/助成制度。対象外の話題は不可\n"
+        "- 根拠に基づく。根拠が不足なら『不明』と明記\n"
+        "- 個人情報や推測は不可\n"
+        "出力: {\"ok\":true|false,\"reasons\":[\"...\"]}（日本語）\n\n"
+        f"質問: {query}\n回答: {text}"
+    )
+    text_out, _ = chat_with_meta(messages=[{"role":"system","content":sys},{"role":"user","content":usr}],
+                                 model=current_app.config["LLM_MODEL"], temperature=0, max_tokens=64)
+    try:
+        import json
+        o = json.loads(text_out.strip())
+        return bool(o.get("ok", False)), list(o.get("reasons", []))
+    except Exception:
+        return False, ["llm_validator_parse_error"]
+
 def answer(query: str, mode: str = "doc", debug: bool = False) -> Dict[str, Any]:
     t0 = time.perf_counter()
     params: Dict[str, Any] = {
@@ -364,6 +401,10 @@ def answer(query: str, mode: str = "doc", debug: bool = False) -> Dict[str, Any]
     return payload
 
 # ===== 質問のドメイン内外判定 =====
+def _scope_keyword_hit(query: str) -> bool:
+    keywords = current_app.config.get("SCOPE_KEYWORDS") or []
+    return any(k in query for k in keywords)
+
 def in_scope_llm(query: str) -> tuple[str, float, str]:
     """
     SYS_PROMPTは使わず、分類器専用のsystemで厳格にJSON返却させる。
@@ -407,7 +448,7 @@ def in_scope_llm(query: str) -> tuple[str, float, str]:
         reason = str(obj.get("reason") or "")
     except Exception as e:
         # 2) フォールバック（誤拒否を減らす）
-        if any(k in query for k in ALLOWED_KEYWORDS):
+        if _scope_keyword_hit(query):
             label, score, reason = "IN", 0.7, "keyword_hit"
         else:
             label, score, reason = "UNSURE", 0.0, f"parse_error:{type(e).__name__}"
@@ -458,33 +499,3 @@ def generate_answer(query: str, mode: str,
     d = _doc(query, params, timing, steps)
     return d["answer"], d.get("sources", []), d.get("doc_hits", []), [], None
 
-# ===== 回答バリデーション =====
-FIXED_MSG = "このチャットは補助金・助成制度に関する質問のみ受け付けます。"
-
-def rule_validate(query: str, text: str, sources: list[dict]) -> tuple[bool, list[str]]:
-    errs = []
-    if not sources and ("不明" not in text):
-        errs.append("根拠なし回答")
-    if len(text) > current_app.config.get("MAX_ANSWER_CHARS", 1200):
-        errs.append("長すぎ")
-    # 例：NGワード/PII/外部URL形式 等の追加チェック
-    return (len(errs)==0, errs)
-
-def validate_answer_llm(query: str, text: str) -> tuple[bool, list[str]]:
-    sys = "あなたは回答レビュワーです。方針に適合するかを判定し、JSONで返します。温度0。"
-    usr = (
-        "方針:\n"
-        "- テーマは補助金/助成制度。対象外の話題は不可\n"
-        "- 根拠に基づく。根拠が不足なら『不明』と明記\n"
-        "- 個人情報や推測は不可\n"
-        "出力: {\"ok\":true|false,\"reasons\":[\"...\"]}（日本語）\n\n"
-        f"質問: {query}\n回答: {text}"
-    )
-    text_out, _ = chat_with_meta(messages=[{"role":"system","content":sys},{"role":"user","content":usr}],
-                                 model=current_app.config["LLM_MODEL"], temperature=0, max_tokens=64)
-    try:
-        import json
-        o = json.loads(text_out.strip())
-        return bool(o.get("ok", False)), list(o.get("reasons", []))
-    except Exception:
-        return False, ["llm_validator_parse_error"]

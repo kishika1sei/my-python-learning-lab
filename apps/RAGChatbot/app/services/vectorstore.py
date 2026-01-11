@@ -23,6 +23,8 @@ def faiss_exists() -> bool:
 # ベクトル群と対応メタデータを受け取り、FAISSインデックス(内積)＋JSONLメタを保存する
 def faiss_save(vectors: List[List[float]], metas: List[Dict]):
     import numpy as np, faiss, os, json
+    if not vectors:
+        return
     dim = len(vectors[0]) if vectors else 0
     arr = np.array(vectors, dtype="float32")
     # ★ 正規化（L2ノルム1に）

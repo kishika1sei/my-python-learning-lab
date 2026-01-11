@@ -1,6 +1,9 @@
 flask
+flask_migrate
+psycopg2-binary
 gunicorn
 python-dotenv
+openai
 sentence-transformers
 faiss-cpu
 pydantic
@@ -9,6 +12,6 @@ beautifulsoup4
 requests
 google-search-results>=2.4.2
 # LangChain
-langchain>=0.2.14
-langchain-openai>=0.1.22
-langchain-community>=0.2.12
+# langchain>=0.2.14
+# langchain-openai>=0.1.22
+# langchain-community>=0.2.12

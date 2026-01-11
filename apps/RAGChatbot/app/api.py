@@ -8,7 +8,7 @@ import unicodedata
 import re
 import secrets
 
-api_bp = Blueprint("api", __name__, url_prefix="/api")
+api_bp = Blueprint("api", __name__)
 
 def safe_filename_keep_unicode(filename: str) -> str:
     """
@@ -100,7 +100,7 @@ def api_ingest():
         }})
         return jsonify({"ok": False, "error": str(e), "trace_id": getattr(g, "trace_id", "")}), 500
 
-
+# TODO Chatに変える
 @api_bp.post("/ask")
 def api_ask():
     """
